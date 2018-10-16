@@ -106,10 +106,13 @@ func (m *Module) ModDir() string {
 type PkgType int
 
 const (
-	PkgTypeNil PkgType = iota
-	PkgTypeLocal
-	PkgTypeLocalMod
-	PkgTypeMod
+	PkgTypeNil      PkgType = iota
+	PkgTypeGoroot           // goroot pkg
+	PkgTypeGopath           // gopath pkg
+	PkgTypeMod              // mod pkg
+	PkgTypeLocal            // mod pkg sub local
+	PkgTypeLocalMod         // mod pkg sub local mod
+	PkgTypeDepMod           // mod pkg dep gopath/pkg/mod
 )
 
 func (m *Module) Lookup(pkg string) (path string, dir string, typ PkgType) {
@@ -132,7 +135,7 @@ func (m *Module) Lookup(pkg string) (path string, dir string, typ PkgType) {
 	if strings.HasPrefix(path, "./") {
 		return path, filepath.Join(m.fdir, path), PkgTypeLocalMod
 	}
-	return path, filepath.Join(PkgModPath, path), PkgTypeMod
+	return path, filepath.Join(PkgModPath, path), PkgTypeDepMod
 }
 
 func (mc *ModuleList) LoadModule(dir string) (*Module, error) {
