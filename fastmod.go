@@ -59,6 +59,18 @@ type Mod struct {
 	Replace *Version
 }
 
+// check mod path
+func (m *Mod) Path() string {
+	v := m.Require
+	if m.Replace != nil {
+		v = m.Replace
+	}
+	if v.Version != "" {
+		return v.Path + "@" + v.Version
+	}
+	return v.Path
+}
+
 type Module struct {
 	f    *modfile.File
 	path string
@@ -71,7 +83,7 @@ func (m *Module) init() {
 	for _, r := range m.f.Require {
 		mod := &Mod{Require: &Version{r.Mod.Path, r.Mod.Version}}
 		for _, v := range m.f.Replace {
-			if r.Mod.Path == v.Old.Path && r.Mod.Version == r.Mod.Version {
+			if r.Mod.Path == v.Old.Path && (v.Old.Version == "" || v.Old.Version == r.Mod.Version) {
 				mod.Replace = &Version{v.New.Path, v.New.Version}
 			}
 		}
@@ -98,17 +110,11 @@ func (m *Module) Lookup(pkg string) (path string, dir string) {
 
 	for _, r := range m.mods {
 		if r.Require.Path == pkg {
-			if r.Replace != nil {
-				path = r.Replace.Path + "@" + r.Replace.Version
-			} else {
-				path = r.Require.Path + "@" + r.Require.Version
-			}
+			path = r.Path()
+			break
 		} else if strings.HasPrefix(pkg, r.Require.Path+"/") {
-			if r.Replace != nil {
-				path = r.Replace.Path + "@" + r.Replace.Version + pkg[len(r.Require.Path):]
-			} else {
-				path = r.Require.Path + "@" + r.Require.Version + pkg[len(r.Require.Path):]
-			}
+			path = r.Path() + pkg[len(r.Require.Path):]
+			break
 		}
 	}
 	if path == "" {
