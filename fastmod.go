@@ -17,12 +17,12 @@ import (
 )
 
 var (
-	PkgMod string
+	PkgModPath string
 )
 
 func UpdatePkgMod(ctx *build.Context) {
 	if list := filepath.SplitList(ctx.GOPATH); len(list) > 0 && list[0] != "" {
-		PkgMod = filepath.Join(list[0], "pkg/mod")
+		PkgModPath = filepath.Join(list[0], "pkg/mod")
 	}
 }
 
@@ -103,9 +103,18 @@ func (m *Module) ModDir() string {
 	return m.fdir
 }
 
-func (m *Module) Lookup(pkg string) (path string, dir string) {
+type PkgType int
+
+const (
+	PkgTypeNil PkgType = iota
+	PkgTypeLocal
+	PkgTypeLocalMod
+	PkgTypeMod
+)
+
+func (m *Module) Lookup(pkg string) (path string, dir string, typ PkgType) {
 	if strings.HasPrefix(pkg, m.path+"/") {
-		return pkg, filepath.Join(m.fdir, pkg[len(m.path+"/"):])
+		return pkg, filepath.Join(m.fdir, pkg[len(m.path+"/"):]), PkgTypeLocal
 	}
 
 	for _, r := range m.mods {
@@ -118,9 +127,12 @@ func (m *Module) Lookup(pkg string) (path string, dir string) {
 		}
 	}
 	if path == "" {
-		return "", ""
+		return "", "", PkgTypeNil
 	}
-	return path, filepath.Join(PkgMod, path)
+	if strings.HasPrefix(path, "./") {
+		return path, filepath.Join(m.fdir, path), PkgTypeLocalMod
+	}
+	return path, filepath.Join(PkgModPath, path), PkgTypeMod
 }
 
 func (mc *ModuleList) LoadModule(dir string) (*Module, error) {
