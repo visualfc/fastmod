@@ -82,13 +82,23 @@ type Module struct {
 }
 
 func (m *Module) init() {
+	rused := make(map[int]bool)
 	for _, r := range m.f.Require {
 		mod := &Mod{Require: &Version{r.Mod.Path, r.Mod.Version}}
-		for _, v := range m.f.Replace {
+		for i, v := range m.f.Replace {
 			if r.Mod.Path == v.Old.Path && (v.Old.Version == "" || v.Old.Version == r.Mod.Version) {
 				mod.Replace = &Version{v.New.Path, v.New.Version}
+				rused[i] = true
+				break
 			}
 		}
+		m.mods = append(m.mods, mod)
+	}
+	for i, v := range m.f.Replace {
+		if rused[i] {
+			continue
+		}
+		mod := &Mod{Require: &Version{v.Old.Path, v.Old.Version}, Replace: &Version{v.New.Path, v.New.Version}}
 		m.mods = append(m.mods, mod)
 	}
 }
@@ -135,9 +145,9 @@ func (m *Module) Lookup(pkg string) (path string, dir string, typ PkgType) {
 		return "", "", PkgTypeNil
 	}
 	if strings.HasPrefix(path, "./") {
-		return path, filepath.Join(m.fdir, path), PkgTypeLocalMod
+		return pkg, filepath.Join(m.fdir, path), PkgTypeLocalMod
 	}
-	return path, filepath.Join(PkgModPath, path), PkgTypeDepMod
+	return pkg, filepath.Join(PkgModPath, path), PkgTypeDepMod
 }
 
 func (mc *ModuleList) LoadModule(dir string) (*Module, error) {
