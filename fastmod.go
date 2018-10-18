@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/visualfc/fastmod/internal/modfile"
+	"github.com/visualfc/fastmod/internal/module"
 )
 
 var (
@@ -70,6 +71,19 @@ func (m *Mod) Path() string {
 		return v.Path + "@" + v.Version
 	}
 	return v.Path
+}
+
+// check mod path
+func (m *Mod) EncodePath() string {
+	v := m.Require
+	if m.Replace != nil {
+		v = m.Replace
+	}
+	path, _ := module.EncodePath(v.Path)
+	if v.Version != "" {
+		return path + "@" + v.Version
+	}
+	return path
 }
 
 type Module struct {
@@ -131,13 +145,15 @@ func (m *Module) Lookup(pkg string) (path string, dir string, typ PkgType) {
 	if strings.HasPrefix(pkg, m.path+"/") {
 		return pkg, filepath.Join(m.fdir, pkg[len(m.path+"/"):]), PkgTypeLocal
 	}
-
+	var encpath string
 	for _, r := range m.mods {
 		if r.Require.Path == pkg {
 			path = r.Path()
+			encpath = r.EncodePath()
 			break
 		} else if strings.HasPrefix(pkg, r.Require.Path+"/") {
 			path = r.Path() + pkg[len(r.Require.Path):]
+			encpath = r.Path() + pkg[len(r.Require.Path):]
 			break
 		}
 	}
@@ -147,7 +163,7 @@ func (m *Module) Lookup(pkg string) (path string, dir string, typ PkgType) {
 	if strings.HasPrefix(path, "./") {
 		return pkg, filepath.Join(m.fdir, path), PkgTypeLocalMod
 	}
-	return pkg, filepath.Join(PkgModPath, path), PkgTypeDepMod
+	return pkg, filepath.Join(PkgModPath, encpath), PkgTypeDepMod
 }
 
 func (mc *ModuleList) LoadModule(dir string) (*Module, error) {
@@ -196,13 +212,12 @@ type Package struct {
 
 func (p *Package) load(node *Node) {
 	for _, v := range node.mods {
-		dir := filepath.Join(PkgModPath, v.Path())
-		fmod := filepath.Join(dir, "go.mod")
+		fmod := filepath.Join(filepath.Join(PkgModPath, v.EncodePath()), "go.mod")
 		m, _ := p.ml.LoadModuleFile(fmod)
 		if m != nil {
 			child := &Node{m, node, nil}
 			node.children = append(node.children, child)
-			p.nodeMap[dir] = child
+			p.nodeMap[m.fdir] = child
 			p.load(child)
 		}
 	}
