@@ -155,7 +155,14 @@ func (mc *ModuleList) LoadModule(dir string) (*Module, error) {
 	if fmod == "" {
 		return nil, err
 	}
-	info, _ := os.Stat(fmod)
+	return mc.LoadModuleFile(fmod)
+}
+
+func (mc *ModuleList) LoadModuleFile(fmod string) (*Module, error) {
+	info, err := os.Stat(fmod)
+	if err != nil {
+		return nil, err
+	}
 	if m, ok := mc.mods[fmod]; ok {
 		if m.ftime == info.ModTime().UnixNano() {
 			return m, nil
@@ -173,4 +180,61 @@ func (mc *ModuleList) LoadModule(dir string) (*Module, error) {
 	m.init()
 	mc.mods[fmod] = m
 	return m, nil
+}
+
+type Node struct {
+	*Module
+	parent   *Node
+	children []*Node
+}
+
+type Package struct {
+	ml      *ModuleList
+	root    *Node
+	nodeMap map[string]*Node
+}
+
+func (p *Package) load(node *Node) {
+	for _, v := range node.mods {
+		dir := filepath.Join(PkgModPath, v.Path())
+		fmod := filepath.Join(dir, "go.mod")
+		m, _ := p.ml.LoadModuleFile(fmod)
+		if m != nil {
+			child := &Node{m, node, nil}
+			node.children = append(node.children, child)
+			p.nodeMap[dir] = child
+			p.load(child)
+		}
+	}
+}
+
+func (p *Package) lookup(node *Node, pkg string) (path string, dir string, typ PkgType) {
+	path, dir, typ = node.Lookup(pkg)
+	if dir != "" {
+		return
+	}
+	for _, child := range node.children {
+		path, dir, typ = p.lookup(child, pkg)
+		if dir != "" {
+			return
+		}
+	}
+	return
+}
+
+func (p *Package) Lookup(pkg string) (path string, dir string, typ PkgType) {
+	return p.lookup(p.root, pkg)
+}
+
+func LoadPackage(dir string, ctx *build.Context) (*Package, error) {
+	ml := NewModuleList(ctx)
+	m, err := ml.LoadModule(dir)
+	if m == nil {
+		return nil, err
+	}
+	node := &Node{m, nil, nil}
+	p := &Package{ml, node, make(map[string]*Node)}
+	p.nodeMap[m.fdir] = node
+	p.load(p.root)
+	return p, nil
 }
