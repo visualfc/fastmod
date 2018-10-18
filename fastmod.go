@@ -9,6 +9,7 @@ package fastmod
 import (
 	"go/build"
 	"io/ioutil"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -72,11 +73,12 @@ func (m *Mod) Path() string {
 }
 
 type Module struct {
-	f    *modfile.File
-	path string
-	fmod string
-	fdir string
-	mods []*Mod
+	f     *modfile.File
+	ftime int64
+	path  string
+	fmod  string
+	fdir  string
+	mods  []*Mod
 }
 
 func (m *Module) init() {
@@ -143,8 +145,11 @@ func (mc *ModuleList) LoadModule(dir string) (*Module, error) {
 	if fmod == "" {
 		return nil, err
 	}
+	info, _ := os.Stat(fmod)
 	if m, ok := mc.mods[fmod]; ok {
-		return m, nil
+		if m.ftime == info.ModTime().UnixNano() {
+			return m, nil
+		}
 	}
 	data, err := ioutil.ReadFile(fmod)
 	if err != nil {
@@ -154,7 +159,7 @@ func (mc *ModuleList) LoadModule(dir string) (*Module, error) {
 	if err != nil {
 		return nil, err
 	}
-	m := &Module{f, f.Module.Mod.Path, fmod, filepath.Dir(fmod), nil}
+	m := &Module{f, info.ModTime().UnixNano(), f.Module.Mod.Path, fmod, filepath.Dir(fmod), nil}
 	m.init()
 	mc.mods[fmod] = m
 	return m, nil
