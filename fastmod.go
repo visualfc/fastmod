@@ -200,23 +200,31 @@ func (mc *ModuleList) LoadModuleFile(fmod string) (*Module, error) {
 
 type Node struct {
 	*Module
-	parent   *Node
-	children []*Node
+	Parent   *Node
+	Children []*Node
 }
 
 type Package struct {
-	ml      *ModuleList
+	mlist   *ModuleList
 	root    *Node
 	nodeMap map[string]*Node
+}
+
+func (p *Package) ModuleList() *ModuleList {
+	return p.mlist
+}
+
+func (p *Package) Node() *Node {
+	return p.root
 }
 
 func (p *Package) load(node *Node) {
 	for _, v := range node.mods {
 		fmod := filepath.Join(filepath.Join(PkgModPath, v.EncodePath()), "go.mod")
-		m, _ := p.ml.LoadModuleFile(fmod)
+		m, _ := p.mlist.LoadModuleFile(fmod)
 		if m != nil {
 			child := &Node{m, node, nil}
-			node.children = append(node.children, child)
+			node.Children = append(node.Children, child)
 			p.nodeMap[m.fdir] = child
 			p.load(child)
 		}
@@ -228,7 +236,7 @@ func (p *Package) lookup(node *Node, pkg string) (path string, dir string, typ P
 	if dir != "" {
 		return
 	}
-	for _, child := range node.children {
+	for _, child := range node.Children {
 		path, dir, typ = p.lookup(child, pkg)
 		if dir != "" {
 			return
