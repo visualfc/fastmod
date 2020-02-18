@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 //
-// internal modfile/module/semver copy from Go1.11 source
 
 package fastmod
 
@@ -15,19 +14,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/visualfc/fastmod/internal/modfile"
-	"github.com/visualfc/fastmod/internal/module"
+	"golang.org/x/mod/modfile"
+	"golang.org/x/mod/module"
 )
-
-// var (
-// 	PkgModPath string
-// )
-
-// func UpdatePkgMod(ctx *build.Context) {
-// 	if list := filepath.SplitList(ctx.GOPATH); len(list) > 0 && list[0] != "" {
-// 		PkgModPath = filepath.Join(list[0], "pkg/mod")
-// 	}
-// }
 
 func fixVersion(path, vers string) (string, error) {
 	return vers, nil
@@ -40,7 +29,11 @@ func LookupModFile(dir string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimSpace(string(data)), nil
+	fpath := strings.TrimSpace(string(data))
+	if fpath == "" {
+		return "", os.ErrNotExist
+	}
+	return fpath, nil
 }
 
 type ModuleList struct {
@@ -82,7 +75,7 @@ func (m *Mod) EncodeVersionPath() string {
 	if strings.HasPrefix(v.Path, "./") {
 		return v.Path
 	}
-	path, _ := module.EncodePath(v.Path)
+	path, _ := module.EscapePath(v.Path)
 	if v.Version != "" {
 		return path + "@" + v.Version
 	}
