@@ -262,10 +262,14 @@ func (p *Package) lookup(node *Node, pkg string) (path string, dir string, typ P
 	return
 }
 
+func (p *Package) IsStd() bool {
+	return p.isStd
+}
+
 func (p *Package) Lookup(pkg string) (path string, dir string, typ PkgType) {
 	if p.isStd {
 		for _, m := range p.Root.Mods {
-			if m.Require.Path == pkg {
+			if strings.HasPrefix(pkg, m.Require.Path) {
 				vpath := filepath.Join(p.Root.fdir, "vendor", pkg)
 				return pkg, vpath, PkgTypeVendor
 			}
