@@ -230,7 +230,8 @@ func (p *Package) Node() *Node {
 func (p *Package) load(node *Node) {
 	for _, v := range node.Mods {
 		var fmod string
-		if strings.HasPrefix(v.VersionPath(), "./") {
+		if strings.HasPrefix(v.VersionPath(), "./") ||
+			strings.HasPrefix(v.VersionPath(), "../") {
 			fmod = filepath.Join(node.ModDir(), v.VersionPath(), "go.mod")
 		} else {
 			fmod = filepath.Join(filepath.Join(p.pkgModPath, v.EncodeVersionPath()), "go.mod")
