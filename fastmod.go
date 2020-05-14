@@ -331,7 +331,8 @@ func (p *Package) LocalImportList(skipcmd bool) []string {
 			if skipcmd && pkg.IsCommand() {
 				continue
 			}
-			ar = append(ar, path.Join(p.Root.path, pkg.Dir[len(p.Root.fdir):]))
+			dir := filepath.Join(p.Root.path, pkg.Dir[len(p.Root.fdir):])
+			ar = append(ar, filepath.ToSlash(dir))
 		}
 	}
 	return ar
