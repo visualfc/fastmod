@@ -23,6 +23,13 @@ func fixVersion(path, vers string) (string, error) {
 }
 
 func LookupModFile(dir string) (string, error) {
+	if strings.HasPrefix(dir, ".") {
+		wd, err := os.Getwd()
+		if err != nil {
+			return "", err
+		}
+		dir = filepath.Join(wd, dir)
+	}
 	root, err := findModuleRoot(dir)
 	if err != nil {
 		return "", err
