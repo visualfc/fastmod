@@ -6,10 +6,10 @@
 package fastmod
 
 import (
+	"fmt"
 	"go/build"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
@@ -23,15 +23,43 @@ func fixVersion(path, vers string) (string, error) {
 }
 
 func LookupModFile(dir string) (string, error) {
-	command := exec.Command("go", "env", "GOMOD")
-	command.Dir = dir
-	data, err := command.Output()
+	root, err := findModuleRoot(dir)
 	if err != nil {
 		return "", err
 	}
-	fpath := strings.TrimSpace(string(data))
-	if strings.HasSuffix(fpath, ".mod") {
-		return fpath, nil
+	if root != "" {
+		return filepath.Join(root, "go.mod"), nil
+	}
+	return "", nil
+	// command := exec.Command("go", "env", "GOMOD")
+	// command.Dir = dir
+	// data, err := command.Output()
+	// if err != nil {
+	// 	return "", err
+	// }
+	// fpath := strings.TrimSpace(string(data))
+	// if strings.HasSuffix(fpath, ".mod") {
+	// 	return fpath, nil
+	// }
+	// return "", nil
+}
+
+func findModuleRoot(dir string) (roots string, err error) {
+	if dir == "" {
+		return "", fmt.Errorf("dir not set")
+	}
+	dir = filepath.Clean(dir)
+
+	// Look for enclosing go.mod.
+	for {
+		if fi, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil && !fi.IsDir() {
+			return dir, nil
+		}
+		d := filepath.Dir(dir)
+		if d == dir {
+			break
+		}
+		dir = d
 	}
 	return "", nil
 }
